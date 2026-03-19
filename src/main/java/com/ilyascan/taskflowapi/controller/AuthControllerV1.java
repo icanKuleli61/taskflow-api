@@ -1,14 +1,19 @@
 package com.ilyascan.taskflowapi.controller;
 
+import com.ilyascan.taskflowapi.Security.CustomUserDetails;
 import com.ilyascan.taskflowapi.dto.UserDto;
+import com.ilyascan.taskflowapi.entity.User;
 import com.ilyascan.taskflowapi.request.AuthLoginRequest;
+import com.ilyascan.taskflowapi.request.RefreshTokenResponce;
 import com.ilyascan.taskflowapi.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 
 @RestController
 @RequestMapping("api/v1/auth")
@@ -27,10 +32,22 @@ public class AuthControllerV1 {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid AuthLoginRequest authLoginRequest) {
-
         return authService.login(authLoginRequest);
-
     }
 
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(Authentication  authentication) {
+
+        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+        assert principal != null;
+        User user = principal.getUser();
+        return authService.logout(user.getUserId());
+    }
+
+    @PostMapping("/refresh/token")
+    public ResponseEntity<?> refreshAccesToken(@RequestBody @Valid RefreshTokenResponce refreshTokenResponce) {
+        return authService.refreshAccesToken(refreshTokenResponce.getRefreshToken());
+    }
 
 }

@@ -22,7 +22,7 @@ public class RefreshToken {
     @Column(nullable = false)
     private String token;
 
-    @OneToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "userId")
     private User user;
 
@@ -30,5 +30,10 @@ public class RefreshToken {
     private Date expiration;
 
     private boolean revoked;
+
+    @PrePersist
+    public void prePersist() {
+        revoked = false;
+    }
 
 }
