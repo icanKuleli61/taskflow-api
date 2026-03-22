@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -28,15 +29,14 @@ public class Task {
 
     private Date taskEndTime;
 
-    private boolean  completed;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private ListColumn listColumn;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id",referencedColumnName = "userId")
-    private User user;
+    @OneToMany(mappedBy = "task",cascade = CascadeType.ALL,orphanRemoval = true,fetch = FetchType.LAZY)
+    private List<CheckListItem> checklistItem;
 
     @PrePersist
     public void prePersist() {
-        completed = false;
         taskStartTime = new Date();
     }
 

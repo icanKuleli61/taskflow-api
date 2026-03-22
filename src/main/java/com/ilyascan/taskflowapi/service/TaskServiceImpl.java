@@ -2,9 +2,16 @@ package com.ilyascan.taskflowapi.service;
 
 import com.ilyascan.taskflowapi.Security.CustomUserDetails;
 import com.ilyascan.taskflowapi.dto.TaskDto;
+import com.ilyascan.taskflowapi.entity.Board;
+import com.ilyascan.taskflowapi.entity.ListColumn;
 import com.ilyascan.taskflowapi.entity.Task;
 import com.ilyascan.taskflowapi.entity.User;
+import com.ilyascan.taskflowapi.exception.CustomException;
+import com.ilyascan.taskflowapi.exception.ExceptionError;
+import com.ilyascan.taskflowapi.handler.ApiResponce;
+import com.ilyascan.taskflowapi.repository.ListColumnRepository;
 import com.ilyascan.taskflowapi.repository.TaskRepository;
+import com.ilyascan.taskflowapi.request.TaskRequest;
 import com.ilyascan.taskflowapi.request.TaskUpdateRequest;
 import com.ilyascan.taskflowapi.responce.TaskResponce;
 import jakarta.transaction.Transactional;
@@ -12,10 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -24,70 +28,130 @@ public class TaskServiceImpl implements TaskService{
 
     private final TaskRepository taskRepository;
 
-    public TaskServiceImpl(TaskRepository taskRepository) {
+    private final BoardService boardService;
+
+    private final ListColumnRepository  listColumnRepository;
+
+    public TaskServiceImpl(TaskRepository taskRepository, BoardService boardService, ListColumnRepository listColumnRepository) {
         this.taskRepository = taskRepository;
+        this.boardService = boardService;
+        this.listColumnRepository = listColumnRepository;
     }
 
 
     @Override
     public ResponseEntity<?> createTask(TaskDto taskDto, Authentication authentication) {
+        User user = authenGetUser(authentication);
+        ListColumn listColumn = listColumnRepository.findWithBoardById(UUID.fromString(taskDto.getListId())).orElseThrow(
+                () -> new CustomException(ExceptionError.LIST_IS_NOT_FOUND)
+        );
 
-        Task taskEntity = toEntity(taskDto,authenGetUser(authentication));
+        Board authorizedBoard = boardService.getAuthorizedBoard(authentication, listColumn.getBoard().getBoardId().toString());
+
+        Task taskEntity = toEntity(taskDto,listColumn);
         taskRepository.save(taskEntity);
-        return ResponseEntity.ok(taskEntity.getTaskTitle()+ " adında task oluşturuldu. ");
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message(taskEntity.getTaskTitle()+ " adında task oluşturuldu. ")
+                .timestamp(new Date())
+                .build()
+        );
     }
+
+
 
     @Override
-    public ResponseEntity<?> getTaskUser(Authentication authentication) {
+    public ResponseEntity<?> getTasksByList(TaskRequest taskRequest, Authentication authentication) {
+
         User user = authenGetUser(authentication);
-        List<Task> allByUserId = taskRepository.findAllByUser_userId(user.getUserId());
-        List<TaskResponce> taskResponceList = toTaskResponceList(allByUserId);
-        return  ResponseEntity.ok(taskResponceList);
+
+        ListColumn listColumn = listColumnRepository.findWithBoardById(UUID.fromString(taskRequest.getListId())).orElseThrow(
+                () -> new CustomException(ExceptionError.LIST_IS_NOT_FOUND)
+        );
+
+        List<Task> tasks = taskRepository.findByListColumn(listColumn);
+
+        List<TaskResponce> response = toTaskResponseList(tasks);
+
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message("Tasklar başarıyla getirildi.")
+                .data(response)
+                .timestamp(new Date())
+                .build());
     }
+
+
 
     @Transactional
     @Override
     public ResponseEntity<?> updateTask(TaskUpdateRequest taskUpdateRequest, Authentication authentication) {
         User user = authenGetUser(authentication);
-        Task task = taskRepository.findByTaskIdAndUser_UserId(UUID.fromString(taskUpdateRequest.getId()),
-                user.getUserId()).orElseThrow(
-                () -> new RuntimeException("Böyle bir task bulunamadı.")
-        );
-        StringBuilder builder = new StringBuilder();
-        String baslik = updateFieldCheck("Başlık ", task.getTaskTitle(), taskUpdateRequest::getTaskTitle, task::setTaskTitle);
-        String aciklama = updateFieldCheck("Acıklama ", task.getTaskDescription(), taskUpdateRequest::getTaskDescription, task::setTaskDescription);
-        String bitisSuresi = updateFieldCheck("Bitiş Süresi ", task.getTaskEndTime(), taskUpdateRequest::getTaskEndTime, task::setTaskEndTime);
-        String boolenCheck = updateFieldCheck("Proje bitti mi ", task.isCompleted(), taskUpdateRequest::getCompleted, task::setCompleted);
 
-        builder.append(baslik).append(aciklama).append(bitisSuresi).append(boolenCheck).append(" Alanları Başarıyla Güncellendi");
-        if (builder.isEmpty()){
-            builder.delete(0, builder.length());
-            builder.append("Güncellenecek bir şey bulunamadı.");
+        Task task = taskRepository.findByIdWithDetails(UUID.fromString(taskUpdateRequest.getId())).orElseThrow(
+                () -> new CustomException(ExceptionError.UNAUTHORIZED)
+        );
+
+        Board authorizedBoard = boardService.getAuthorizedBoard(authentication, task.getListColumn().getBoard().getBoardId().toString());
+
+
+        boolean flag = false;
+        if (updateFieldCheck(task.getTaskTitle(), taskUpdateRequest::getTaskTitle, task::setTaskTitle)) flag = true;
+        if (updateFieldCheck(task.getTaskDescription(), taskUpdateRequest::getTaskDescription, task::setTaskDescription))  flag = true;
+        if (updateFieldCheck(task.getTaskEndTime(), taskUpdateRequest::getTaskEndTime, task::setTaskEndTime))  flag = true;
+
+        String message = "Güncellenecek bir şey bulunamadı. ";
+
+        if (flag) {
+            message = "Alanlar başarıyla güncelllendi";
         }
-        return ResponseEntity.ok(builder.toString());
+
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message(message)
+                .timestamp(new Date())
+                .build());
     }
+
+
 
     @Override
     public ResponseEntity<?> deleteTask(UUID taskId, Authentication authentication) {
+
         User user = authenGetUser(authentication);
-        Task task = taskRepository.findByTaskIdAndUser_UserId(taskId, user.getUserId()).orElseThrow(
-                () -> new RuntimeException("Bu kullanacıya ait bir task bulunamadı. ")
-        );
+
+        Task task = taskRepository.findByIdWithDetails(taskId)
+                .orElseThrow(() -> new CustomException(ExceptionError.TASK_NOT_FOUND));
+
+        boolean isMember = task.getListColumn().getBoard().getMembers().stream()
+                .anyMatch(member -> member.getUserId().equals(user.getUserId()));
+
+        if (!isMember) {
+            throw new CustomException(ExceptionError.UNAUTHORIZED);
+        }
+
         taskRepository.delete(task);
-        return ResponseEntity.ok("Task başarıyla silindi");
+
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message("Task başarıyla silindi")
+                .timestamp(new Date())
+                .build());
     }
 
-    private <T> String updateFieldCheck(String message,T field, Supplier<T> supplier, Consumer<T> consumer) {
+
+
+    private <T> boolean updateFieldCheck(T field, Supplier<T> supplier, Consumer<T> consumer) {
         T newField = supplier.get();
+        boolean flag = false;
         if (Objects.isNull(newField)){
-            return "";
+            return flag;
         }
-        String checkMesasage = "";
         if (!Objects.equals(field, newField)){
             updateField(newField,consumer);
-            checkMesasage = message;
+            flag = true;
         }
-        return checkMesasage;
+        return flag;
     }
 
     private <T> void updateField(T newField, Consumer<T> consumer){
@@ -95,19 +159,28 @@ public class TaskServiceImpl implements TaskService{
     }
 
 
+    private User authenGetUser(Authentication authentication) {
+        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
+        User user = principal.getUser();
+        if (user == null) {
+            throw new CustomException(ExceptionError.USER_NOT_FOUND);
+        }
+        return user;
+    }
 
-    private List<TaskResponce> toTaskResponceList(List<Task> taskList){
+    private List<TaskResponce> toTaskResponseList(List<Task> taskList) {
         List<TaskResponce> taskResponceList = new ArrayList<>();
         for (Task task : taskList) {
-            TaskResponce taskResponce = toTaskResponce(task);
+            TaskResponce taskResponce = toTaskResponse(task);
             taskResponceList.add(taskResponce);
         }
         return taskResponceList;
+
+
     }
 
-    private TaskResponce toTaskResponce(Task  taskEntity) {
+    private TaskResponce toTaskResponse(Task  taskEntity) {
         return TaskResponce.builder()
-                .taskId(taskEntity.getTaskId().toString())
                 .taskTitle(taskEntity.getTaskTitle())
                 .taskDescription(taskEntity.getTaskDescription())
                 .taskStartTime(taskEntity.getTaskStartTime())
@@ -115,20 +188,11 @@ public class TaskServiceImpl implements TaskService{
                 .build();
     }
 
-    private User authenGetUser(Authentication authentication) {
-        CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
-        User user = principal.getUser();
-        if (user == null) {
-            throw new RuntimeException("User found exception");
-        }
-        return user;
-    }
-
-    private Task toEntity(TaskDto taskDto, User user){
+    private Task toEntity(TaskDto taskDto,ListColumn listColumn) {
         return Task.builder()
                 .taskTitle(taskDto.getTaskTitle())
                 .taskDescription(taskDto.getTaskDescription())
-                .user(user)
+                .listColumn(listColumn)
                 .build();
     }
 }

@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.http.HttpStatus;
 
 import java.util.Date;
 
@@ -14,7 +13,9 @@ import java.util.Date;
 @Builder
 public class ApiResponce<T>{
 
-    public Boolean success;
+    public boolean success;
+
+    public String message;
 
     public T data;
 

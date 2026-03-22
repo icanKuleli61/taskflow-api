@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -43,6 +44,9 @@ public class User {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @ManyToMany(mappedBy = "members", fetch = FetchType.LAZY)
+    private List<Board> boards;
 
     @PrePersist
     private void prePersist() {

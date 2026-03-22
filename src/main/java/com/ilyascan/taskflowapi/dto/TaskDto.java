@@ -14,6 +14,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TaskDto {
 
+    @NotBlank(message = "listId boş olamaz")
+    private String listId;
+
     @NotBlank(message = "Task başlığı boş olamaz")
     @Size(min = 5, max = 150, message = "Task başlığı 5 ile 150 karakter arasında bir değer alabilir")
     private String taskTitle;

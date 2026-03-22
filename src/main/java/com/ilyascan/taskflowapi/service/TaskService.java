@@ -1,8 +1,10 @@
 package com.ilyascan.taskflowapi.service;
 
 import com.ilyascan.taskflowapi.dto.TaskDto;
+import com.ilyascan.taskflowapi.request.TaskRequest;
 import com.ilyascan.taskflowapi.request.TaskUpdateRequest;
 
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 
@@ -12,7 +14,7 @@ public interface TaskService {
 
     ResponseEntity<?> createTask(TaskDto taskDto, Authentication authentication);
 
-    ResponseEntity<?> getTaskUser(Authentication authentication);
+    ResponseEntity<?> getTasksByList(TaskRequest taskRequest, Authentication authentication);
 
     ResponseEntity<?> updateTask(TaskUpdateRequest taskUpdateRequest
             , Authentication authentication);

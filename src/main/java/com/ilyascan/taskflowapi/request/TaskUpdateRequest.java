@@ -27,6 +27,4 @@ public class TaskUpdateRequest {
     private Date taskEndTime;
 
 
-    private Boolean  completed;
-
 }

@@ -2,6 +2,8 @@ package com.ilyascan.taskflowapi.service;
 
 import com.ilyascan.taskflowapi.entity.RefreshToken;
 import com.ilyascan.taskflowapi.entity.User;
+import com.ilyascan.taskflowapi.exception.CustomException;
+import com.ilyascan.taskflowapi.exception.ExceptionError;
 import com.ilyascan.taskflowapi.repository.RefreshTokenRepository;
 import com.ilyascan.taskflowapi.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService{
     @Override
     public User getUserExctract(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token).orElseThrow(
-                () -> new RuntimeException("Böyle Token BUlanamadı")
+                () -> new CustomException(ExceptionError.INVALID_REFRESH_TOKEN)
         );
         return refreshToken.getUser();
     }
@@ -52,18 +54,18 @@ public class RefreshTokenServiceImpl implements RefreshTokenService{
 
     private User getFindByUserId(UUID userId) {
         return userRepository.findById(userId).orElseThrow(
-                () -> new RuntimeException("User not found!")
+                () -> new CustomException(ExceptionError.USER_NOT_FOUND)
         );
     }
 
     private RefreshToken isTokenValid(String token, UUID userId) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token).orElseThrow(
-                () -> new RuntimeException("Token not found!")
+                () -> new CustomException(ExceptionError.INVALID_REFRESH_TOKEN)
         );
         isTokenCheckUsernameValid(refreshToken, userId);
 
         if (!isRefreshTokenValid(refreshToken,userId)){
-            throw new RuntimeException("Token is not valid!");
+            throw new CustomException(ExceptionError.INVALID_REFRESH_TOKEN);
         }
         return refreshToken;
     }
@@ -71,7 +73,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService{
     private void isTokenCheckUsernameValid(RefreshToken refreshToken, UUID userId) {
         User findByUserId = getFindByUserId(userId);
         if (!refreshToken.getUser().getEmail().equals(findByUserId.getEmail())) {
-            throw new RuntimeException("Token is not valid!");
+            throw new CustomException(ExceptionError.INVALID_REFRESH_TOKEN);
         }
     }
 

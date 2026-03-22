@@ -5,6 +5,7 @@ import com.ilyascan.taskflowapi.Security.JwtService;
 import com.ilyascan.taskflowapi.dto.UserDto;
 import com.ilyascan.taskflowapi.entity.RefreshToken;
 import com.ilyascan.taskflowapi.entity.User;
+import com.ilyascan.taskflowapi.handler.ApiResponce;
 import com.ilyascan.taskflowapi.repository.AuthRepository;
 import com.ilyascan.taskflowapi.repository.UserRepository;
 import com.ilyascan.taskflowapi.request.AuthLoginRequest;
@@ -16,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.UUID;
 
 
@@ -44,7 +46,13 @@ public class AuthServiceImpl implements AuthService {
     public ResponseEntity<?> registerUser(UserDto userDto) {
         User entity = toEntity(userDto);
         authRepository.save(entity);
-        return ResponseEntity.ok(entity.getSurname()+" Kullanıcı başarılı bir şekilde kayıt oldu.");
+
+        return ResponseEntity.ok(ApiResponce.builder().success(true)
+                .message(entity.getSurname()+" Kullanıcı başarılı bir şekilde kayıt oldu.")
+                .data(entity.getUsername()+" "+entity.getUsername())
+                .timestamp(new Date())
+                .build()
+        );
     }
 
     @Override
@@ -59,11 +67,15 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtService.generateToken(principal);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(getUser(principal.getUsername()).getUserId());
 
-        return ResponseEntity.ok(
-                JwtResponce.builder()
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message("Token oluşturuldu")
+                .data( JwtResponce.builder()
                         .accessToken(token)
                         .refreshToken(refreshToken.getToken())
-                        .build()
+                        .build())
+                .timestamp(new Date())
+                .build()
         );
     }
 
@@ -71,7 +83,12 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public ResponseEntity<?> logout(UUID userId) {
         refreshTokenService.isRekovedTrueLayaut(userId);
-        return ResponseEntity.ok("Başarılı bir şekilde çıkış yapıldı");
+        return ResponseEntity.ok(
+                ApiResponce.builder().success(true)
+                        .message("Başarılı bir şekilde çıkış yapıldı")
+                        .timestamp(new Date())
+                        .build()
+        );
     }
 
     @Override
@@ -80,9 +97,16 @@ public class AuthServiceImpl implements AuthService {
         User userExctract = refreshTokenService.getUserExctract(refreshToken.getToken());
         CustomUserDetails customUserDetails = new CustomUserDetails(userExctract);
         String accesToken = jwtService.generateToken(customUserDetails);
-        return ResponseEntity.ok(JwtResponce.builder().accessToken(accesToken)
-                .refreshToken(refreshToken.getToken())
-                .build());
+        return ResponseEntity.ok(
+                ApiResponce.builder()
+                        .success(true)
+                        .message("Yeni token oluşturuldu")
+                        .data(JwtResponce.builder().accessToken(accesToken)
+                                .refreshToken(refreshToken.getToken())
+                                .build())
+                        .timestamp(new Date())
+                        .build()
+                );
     }
 
 

@@ -14,8 +14,6 @@ import java.util.Date;
 @Builder
 public class TaskResponce {
 
-    private String taskId;
-
     private String taskTitle;
 
     private String taskDescription;
@@ -23,8 +21,5 @@ public class TaskResponce {
     private Date taskStartTime;
 
     private Date taskEndTime;
-
-    private boolean  completed;
-
 
 }

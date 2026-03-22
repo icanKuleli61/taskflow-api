@@ -1,6 +1,7 @@
 package com.ilyascan.taskflowapi.controller;
 
 import com.ilyascan.taskflowapi.dto.TaskDto;
+import com.ilyascan.taskflowapi.request.TaskRequest;
 import com.ilyascan.taskflowapi.request.TaskUpdateRequest;
 import com.ilyascan.taskflowapi.service.TaskService;
 import jakarta.validation.Valid;
@@ -28,9 +29,11 @@ public class TaskControllerV1 {
         return taskService.createTask(taskDto,authentication);
     }
 
+
     @GetMapping("/me")
-    public ResponseEntity<?> getTaskUsers(Authentication authentication){
-        return taskService.getTaskUser(authentication);
+    public ResponseEntity<?> getTasksByList(@RequestBody @Valid TaskRequest taskRequest
+            , Authentication authentication){
+        return taskService.getTasksByList(taskRequest,authentication);
     }
 
     @PutMapping("/me")
