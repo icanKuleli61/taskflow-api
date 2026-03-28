@@ -40,7 +40,7 @@ public enum ExceptionError {
     LIST_IS_NOT_FOUND("List'te bulunamadı", HttpStatus.NOT_FOUND, 2010L),
 
 
-    ;
+;
 
 
     private final String exceptionName;

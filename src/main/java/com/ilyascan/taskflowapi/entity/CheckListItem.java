@@ -18,13 +18,16 @@ public class CheckListItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID chechListId;
 
+    @Column(nullable = false)
     private String text;
 
     private boolean completed;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "task_id")
     private Task task;
 
+    private Integer position;
 
     @PrePersist
     public void prePersist()
@@ -32,4 +35,3 @@ public class CheckListItem {
         completed = false;
     }
 }
-  
