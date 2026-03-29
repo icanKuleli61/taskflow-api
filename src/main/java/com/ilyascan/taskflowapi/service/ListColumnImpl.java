@@ -6,6 +6,7 @@ import com.ilyascan.taskflowapi.entity.ListColumn;
 import com.ilyascan.taskflowapi.exception.CustomException;
 import com.ilyascan.taskflowapi.exception.ExceptionError;
 import com.ilyascan.taskflowapi.handler.ApiResponce;
+import com.ilyascan.taskflowapi.mapper.ListColunmMapper;
 import com.ilyascan.taskflowapi.repository.BoardRepository;
 import com.ilyascan.taskflowapi.repository.ListColumnRepository;
 import com.ilyascan.taskflowapi.request.ListColumnUpdate;
@@ -28,10 +29,13 @@ public class ListColumnImpl implements ListColumnService {
 
     private final BoardService boardService;
 
-    public ListColumnImpl(ListColumnRepository listColumnRepository, BoardRepository boardRepository, BoardService boardService) {
+    private final ListColunmMapper listColunmMapper;
+
+    public ListColumnImpl(ListColumnRepository listColumnRepository, BoardRepository boardRepository, BoardService boardService, ListColunmMapper listColunmMapper) {
         this.listColumnRepository = listColumnRepository;
         this.boardRepository = boardRepository;
         this.boardService = boardService;
+        this.listColunmMapper = listColunmMapper;
     }
 
 
@@ -41,7 +45,7 @@ public class ListColumnImpl implements ListColumnService {
 
         Board authorizedBoard = boardService.getAuthorizedBoard(authentication, listColumnDto.getBoardId());
 
-        ListColumn entity = toEntity(listColumnDto, authorizedBoard);
+        ListColumn entity = listColunmMapper.toEntity(listColumnDto, authorizedBoard);
         listColumnRepository.save(entity);
         return ResponseEntity.ok(ApiResponce.builder()
                 .success(true)
@@ -126,11 +130,5 @@ public class ListColumnImpl implements ListColumnService {
     }
 
 
-    private ListColumn toEntity(ListColumnDto listColumnDto, Board board) {
-        return ListColumn.builder()
-                .listName(listColumnDto.getListName())
-                .listDescription(listColumnDto.getListDescription())
-                .board(board)
-                .build();
-    }
+
 }

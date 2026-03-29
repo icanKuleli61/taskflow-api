@@ -19,4 +19,13 @@ public interface BoardRepository extends JpaRepository<Board, UUID> {
     @Query("SELECT b FROM Board b LEFT JOIN FETCH b.members WHERE b.boardId = :id")
     Optional<Board> findByIdWithMembers(@Param("id") UUID id);
 
+        @Query("""
+    SELECT b FROM Board b
+    LEFT JOIN FETCH b.listColumns l
+    LEFT JOIN FETCH l.tasks t
+    LEFT JOIN FETCH t.checklistItem
+    WHERE b.boardId = :boardId
+    """)
+    Optional<Board> findBoardWithDetails(UUID boardId);
+
 }

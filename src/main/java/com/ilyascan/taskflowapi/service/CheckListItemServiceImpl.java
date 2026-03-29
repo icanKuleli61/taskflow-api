@@ -8,9 +8,11 @@ import com.ilyascan.taskflowapi.entity.User;
 import com.ilyascan.taskflowapi.exception.CustomException;
 import com.ilyascan.taskflowapi.exception.ExceptionError;
 import com.ilyascan.taskflowapi.handler.ApiResponce;
+import com.ilyascan.taskflowapi.mapper.ChecklistMapper;
 import com.ilyascan.taskflowapi.repository.CheckListItemRepository;
 import com.ilyascan.taskflowapi.repository.TaskRepository;
 import com.ilyascan.taskflowapi.repository.UserRepository;
+import com.ilyascan.taskflowapi.request.CheckListItemReoderRequest;
 import com.ilyascan.taskflowapi.request.CheckListItemToggleRequest;
 import com.ilyascan.taskflowapi.request.CheckListItemUpdate;
 import jakarta.transaction.Transactional;
@@ -20,9 +22,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Service
 public class CheckListItemServiceImpl implements CheckListItemService {
@@ -33,10 +37,13 @@ public class CheckListItemServiceImpl implements CheckListItemService {
 
     private final UserRepository userRepository;
 
-    public CheckListItemServiceImpl(CheckListItemRepository checkListItemRepository, TaskRepository taskRepository, UserRepository userRepository) {
+    private final ChecklistMapper  checklistMapper;
+
+    public CheckListItemServiceImpl(CheckListItemRepository checkListItemRepository, TaskRepository taskRepository, UserRepository userRepository, ChecklistMapper checklistMapper) {
         this.checkListItemRepository = checkListItemRepository;
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
+        this.checklistMapper = checklistMapper;
     }
 
 
@@ -50,7 +57,7 @@ public class CheckListItemServiceImpl implements CheckListItemService {
         Integer maxPos = checkListItemRepository.findMaxPositionByTaskId(taskUUID);
         Integer nextPos = maxPos + 1;
 
-        CheckListItem entity = toEntity(checkListItemDto, task, nextPos);
+        CheckListItem entity = checklistMapper.toEntity(checkListItemDto, task, nextPos);
         checkListItemRepository.save(entity);
         return ResponseEntity.ok(ApiResponce.builder()
                 .success(true)
@@ -103,7 +110,62 @@ public class CheckListItemServiceImpl implements CheckListItemService {
     @Transactional
     @Override
     public ResponseEntity<?> togleChecklistItem(String id, CheckListItemToggleRequest checkListItemToggleRequest, Authentication authentication) {
-        return null;
+        UUID checkUUID = UUID.fromString(id);
+        CheckListItem checkListItem = checkListItemRepository.findByIdWithDetails(checkUUID).orElseThrow(
+                () -> new CustomException(ExceptionError.UNAUTHORIZED)
+        );
+        Task authorized = isAuthorized(checkListItem.getTask().getTaskId(), authentication);
+
+        boolean flag = false;
+        if (changeTrueField(checkListItem.isCompleted(),checkListItemToggleRequest::isCompleted,checkListItemToggleRequest::setCompleted)) flag = true;
+        String message = "Değiştirilecek bir şey bulunamadı.";
+        if (flag){
+            message = "Alanlar Başarıyla değişti";
+        }
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message(message)
+                .data(checkListItem)
+                .timestamp(new Date())
+                .build()
+        );
+    }
+
+    @Transactional
+    @Override
+    public ResponseEntity<?> reorderChecklistItem(String taskId, List<CheckListItemReoderRequest> checkListItemReoderRequest, Authentication authentication) {
+        UUID taskUUID = UUID.fromString(taskId);
+        Task authorized = isAuthorized(taskUUID, authentication);
+
+        List<CheckListItem> items = checkListItemRepository.findByTask_taskId(taskUUID);
+
+        Map<UUID,CheckListItem> map = items.stream().collect(Collectors.toMap(CheckListItem::getChechListId,i -> i));
+
+        boolean isFlag = false;
+        for (CheckListItemReoderRequest request : checkListItemReoderRequest) {
+            UUID chechListUUID = UUID.fromString(request.getId());
+            CheckListItem checkListItem = map.get(chechListUUID);
+            if (checkListItem == null) {
+                throw new CustomException(ExceptionError.TASK_NOT_FOUND_CHECKITEM);
+            }
+
+            if (!checkListItem.getPosition().equals(request.getPosition())) {
+                checkListItem.setPosition(request.getPosition());
+                isFlag = true;
+            }
+        }
+        String message = "Değiştirilecek bir şey bulunamadı.";
+        if (isFlag) {
+            message = "Item sıralaması başarıyla kaydedildi.";
+        }
+
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message(message)
+                .timestamp(new Date())
+                .build()
+        );
+
     }
 
     @Transactional
@@ -135,9 +197,6 @@ public class CheckListItemServiceImpl implements CheckListItemService {
                 .build());
     }
 
-
-
-
     private <T> boolean changeTrueField(T field, Supplier<T> supplier, Consumer<T> consumer) {
         if (!isFiealdCheck(field, supplier)) {
             consumer.accept(supplier.get());
@@ -155,9 +214,6 @@ public class CheckListItemServiceImpl implements CheckListItemService {
         }
         return field.equals(supplier.get());
     }
-
-
-
 
     private Task isAuthorized(UUID taskId, Authentication authentication) {
 
@@ -184,14 +240,6 @@ public class CheckListItemServiceImpl implements CheckListItemService {
         return userRepository.findById(principal.getUser().getUserId()).orElseThrow(
                 () -> new CustomException(ExceptionError.USER_NOT_FOUND)
         );
-    }
-
-    private CheckListItem toEntity(CheckListItemDto checkListItemDto,Task task,Integer maxPos) {
-        return CheckListItem.builder()
-                .text(checkListItemDto.getText())
-                .task(task)
-                .position(maxPos)
-                .build();
     }
 
 

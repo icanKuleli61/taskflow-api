@@ -2,6 +2,7 @@ package com.ilyascan.taskflowapi.controller;
 
 import com.ilyascan.taskflowapi.dto.BoardDto;
 import com.ilyascan.taskflowapi.request.BoardDeleteRequest;
+import com.ilyascan.taskflowapi.request.BoardGetDailtsRequest;
 import com.ilyascan.taskflowapi.request.BoardUserTransactions;
 import com.ilyascan.taskflowapi.service.BoardService;
 import jakarta.validation.Valid;
@@ -29,6 +30,12 @@ public class BoardControllerV1 {
     @GetMapping("/boards")
     public ResponseEntity<?> getBoards(Authentication authentication) {
         return boardService.getBoards(authentication);
+    }
+
+    @GetMapping("/boards/details")
+    public ResponseEntity<?> getBoardDetails(@RequestBody BoardGetDailtsRequest details
+    , Authentication authentication) {
+        return  boardService.getBoardDetails(details,authentication);
     }
 
     @DeleteMapping("/me")

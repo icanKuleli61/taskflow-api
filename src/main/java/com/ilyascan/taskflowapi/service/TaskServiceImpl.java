@@ -9,6 +9,7 @@ import com.ilyascan.taskflowapi.entity.User;
 import com.ilyascan.taskflowapi.exception.CustomException;
 import com.ilyascan.taskflowapi.exception.ExceptionError;
 import com.ilyascan.taskflowapi.handler.ApiResponce;
+import com.ilyascan.taskflowapi.mapper.TaskMapper;
 import com.ilyascan.taskflowapi.repository.ListColumnRepository;
 import com.ilyascan.taskflowapi.repository.TaskRepository;
 import com.ilyascan.taskflowapi.request.TaskRequest;
@@ -32,10 +33,13 @@ public class TaskServiceImpl implements TaskService{
 
     private final ListColumnRepository  listColumnRepository;
 
-    public TaskServiceImpl(TaskRepository taskRepository, BoardService boardService, ListColumnRepository listColumnRepository) {
+    private final TaskMapper  taskMapper;
+
+    public TaskServiceImpl(TaskRepository taskRepository, BoardService boardService, ListColumnRepository listColumnRepository, TaskMapper taskMapper) {
         this.taskRepository = taskRepository;
         this.boardService = boardService;
         this.listColumnRepository = listColumnRepository;
+        this.taskMapper = taskMapper;
     }
 
 
@@ -48,7 +52,7 @@ public class TaskServiceImpl implements TaskService{
 
         Board authorizedBoard = boardService.getAuthorizedBoard(authentication, listColumn.getBoard().getBoardId().toString());
 
-        Task taskEntity = toEntity(taskDto,listColumn);
+        Task taskEntity = taskMapper.toEntity(taskDto,listColumn);
         taskRepository.save(taskEntity);
         return ResponseEntity.ok(ApiResponce.builder()
                 .success(true)
@@ -171,28 +175,11 @@ public class TaskServiceImpl implements TaskService{
     private List<TaskResponce> toTaskResponseList(List<Task> taskList) {
         List<TaskResponce> taskResponceList = new ArrayList<>();
         for (Task task : taskList) {
-            TaskResponce taskResponce = toTaskResponse(task);
+            TaskResponce taskResponce = taskMapper.toTaskResponse(task);
             taskResponceList.add(taskResponce);
         }
         return taskResponceList;
 
 
-    }
-
-    private TaskResponce toTaskResponse(Task  taskEntity) {
-        return TaskResponce.builder()
-                .taskTitle(taskEntity.getTaskTitle())
-                .taskDescription(taskEntity.getTaskDescription())
-                .taskStartTime(taskEntity.getTaskStartTime())
-                .taskEndTime(taskEntity.getTaskEndTime())
-                .build();
-    }
-
-    private Task toEntity(TaskDto taskDto,ListColumn listColumn) {
-        return Task.builder()
-                .taskTitle(taskDto.getTaskTitle())
-                .taskDescription(taskDto.getTaskDescription())
-                .listColumn(listColumn)
-                .build();
     }
 }

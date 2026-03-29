@@ -2,14 +2,16 @@ package com.ilyascan.taskflowapi.controller;
 
 
 import com.ilyascan.taskflowapi.dto.CheckListItemDto;
+import com.ilyascan.taskflowapi.request.CheckListItemReoderRequest;
 import com.ilyascan.taskflowapi.request.CheckListItemToggleRequest;
 import com.ilyascan.taskflowapi.request.CheckListItemUpdate;
 import com.ilyascan.taskflowapi.service.CheckListItemService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.parameters.P;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("api/v1/chechListItem")
@@ -46,11 +48,18 @@ public class CheckListItemV1 {
         return checkListItemService.updateChecklistItem(id,checkListItemUpdate, authentication );
     }
 
-    @PutMapping("toggle/{id}")
+    @PatchMapping("toggle/{id}")
     public ResponseEntity<?> togleChecklistItem(@PathVariable String id
             , @RequestBody CheckListItemToggleRequest checkListItemToggleRequest
             , Authentication authentication){
         return checkListItemService.togleChecklistItem(id,checkListItemToggleRequest,authentication);
+    }
+
+    @PatchMapping("/checklist/reorder/{taskId}")
+    public ResponseEntity<?> reorderChecklistItem(@PathVariable String taskId
+            , @RequestBody List<CheckListItemReoderRequest> checkListItemReoderRequest
+            , Authentication authentication){
+        return checkListItemService.reorderChecklistItem(taskId,checkListItemReoderRequest,authentication);
     }
 
 

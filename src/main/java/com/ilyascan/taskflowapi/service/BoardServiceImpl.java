@@ -7,10 +7,13 @@ import com.ilyascan.taskflowapi.entity.User;
 import com.ilyascan.taskflowapi.exception.CustomException;
 import com.ilyascan.taskflowapi.exception.ExceptionError;
 import com.ilyascan.taskflowapi.handler.ApiResponce;
+import com.ilyascan.taskflowapi.mapper.BoardMapper;
 import com.ilyascan.taskflowapi.repository.BoardRepository;
 import com.ilyascan.taskflowapi.repository.UserRepository;
 import com.ilyascan.taskflowapi.request.BoardDeleteRequest;
+import com.ilyascan.taskflowapi.request.BoardGetDailtsRequest;
 import com.ilyascan.taskflowapi.request.BoardUserTransactions;
+import com.ilyascan.taskflowapi.responce.BoardDtoResponce;
 import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -27,9 +30,12 @@ public class BoardServiceImpl implements BoardService {
 
     private final UserRepository userRepository;
 
-    public BoardServiceImpl(BoardRepository boardRepository, UserRepository userRepository) {
+    private final BoardMapper boardMapper;
+
+    public BoardServiceImpl(BoardRepository boardRepository, UserRepository userRepository, BoardMapper boardMapper) {
         this.boardRepository = boardRepository;
         this.userRepository = userRepository;
+        this.boardMapper = boardMapper;
     }
 
 
@@ -153,15 +159,37 @@ public class BoardServiceImpl implements BoardService {
         return board;
     }
 
+    @Override
+    public ResponseEntity<?> getBoardDetails(BoardGetDailtsRequest details, Authentication authentication) {
+        User user = authenticationBreakGetUser(authentication);
+        UUID boardId = UUID.fromString(details.getBoardId());
+        Board board = boardRepository.findBoardWithDetails(boardId).orElseThrow(
+                () -> new CustomException(ExceptionError.BOARD_NOT_FOUND)
+        );
 
-    private Board toEntity(BoardDto boardDto) {
+        if (!board.getOwner().getUserId().equals(user.getUserId())) {
+            throw new CustomException(ExceptionError.UNAUTHORIZED   );
+        }
+
+        BoardDtoResponce map = boardMapper.map(board);
+
+        return ResponseEntity.ok(ApiResponce.builder()
+                .success(true)
+                .message("Başarıyla calışma alanındaki bilgiler getirildi.")
+                .data(map)
+                .timestamp(new Date())
+                .build()
+        );
+    }
+
+
+    public Board toEntity(BoardDto boardDto) {
         return Board.builder()
                 .boardName(boardDto.getBoardName())
                 .owner(getUser(UUID.fromString(boardDto.getUserId())))
                 .boardDescription(boardDto.getBoardDescription())
                 .build();
     }
-
 
 
     private User authenticationBreakGetUser(Authentication authentication) {
